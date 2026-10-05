@@ -1,0 +1,103 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Exam Room Allocator</title>
+<style>
+:root{--r:#C4161C;--k:#161618;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;font:18px/1.4 system-ui,Arial,sans-serif;background:#fff;color:var(--k)}
+header{background:var(--k);border-bottom:6px solid var(--r);color:#fff;padding:18px 24px}h1{margin:0;font-size:26px}
+main{padding:12px 24px 40px;max-width:1300px;margin:auto}
+h2{border-left:8px solid var(--r);padding-left:12px;font-size:24px;margin:32px 0 12px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.card{border:2px solid var(--k);border-radius:10px;padding:12px}.card b{display:block;font-size:34px;color:var(--r)}
+.warn{background:var(--r);color:#fff;padding:12px 16px;border-radius:8px;margin:12px 0;font-weight:700}
+.sc{overflow-x:auto}
+.fl{display:grid;grid-template-columns:80px repeat(14,minmax(56px,1fr));gap:4px;margin-bottom:4px;min-width:920px;align-items:center}
+.rm{font:700 17px system-ui;padding:10px 0;border:2px solid var(--k);border-radius:6px;cursor:pointer}
+.reg{background:#c9c9cd;color:#444}.ex{background:#2e9d4f;color:#fff}.rel{background:#f5a623;color:#000}.un{background:#fff;color:#444;border-color:#aaa}
+.blk{background:repeating-linear-gradient(45deg,#161618,#161618 6px,#555 6px,#555 12px);color:#fff}
+.sel{outline:4px solid var(--r);outline-offset:1px}
+.lg span{display:inline-block;margin:4px 14px 4px 0}.lg i{display:inline-block;width:18px;height:18px;border:2px solid var(--k);vertical-align:middle;margin-right:6px;border-radius:4px}
+.seats{display:grid;grid-template-columns:repeat(10,minmax(88px,1fr));gap:4px;min-width:920px;margin-top:10px}
+.s{font-size:13px;padding:8px 2px;text-align:center;border-radius:4px;border:2px solid transparent;min-height:42px}
+.s.st{border:3px solid var(--k);font-weight:800}.s small{color:var(--r);font-weight:800}
+.hit{outline:5px solid var(--r);outline-offset:1px}
+button.b,input{font:inherit;padding:8px 14px;border-radius:8px;border:2px solid var(--k)}button.b{background:var(--r);color:#fff;border-color:var(--r);cursor:pointer;font-weight:700}
+table{border-collapse:collapse;width:100%}th,td{border:1px solid #bbb;padding:8px;text-align:left}th{background:var(--k);color:#fff}
+input[type=number]{width:90px}
+.tabs{display:flex;gap:8px;padding:12px 24px 0;max-width:1300px;margin:auto}.tabs button{font:700 18px system-ui;padding:10px 20px;border:2px solid var(--k);border-radius:8px 8px 0 0;background:#fff;cursor:pointer}.tabs button.on{background:var(--r);color:#fff;border-color:var(--r)}.nt{border:2px solid var(--k);border-radius:8px;padding:12px 16px;margin:10px 0}.nt h3{margin:0 0 6px;color:var(--r)}
+</style></head><body>
+<header><h1>Exam Room Allocator — Aranya University, Mumbai Main Building</h1></header>
+<div class="tabs"><button id="t1" class="on" onclick="tab(1)">Allocator</button><button id="t2" onclick="tab(2)">Notices</button></div>
+<main>
+<div id="v1"><div id="wn"></div><h2>Summary</h2><div class="cards" id="cards"></div>
+<h2>Papers (15 Dec 2026, 10:00 to 13:00)</h2><div class="sc"><table id="pap"></table></div>
+<h2>Building view</h2>
+<div class="lg"><span><i style="background:#c9c9cd"></i>Regular class</span><span><i style="background:#2e9d4f"></i>Exam room</span><span><i style="background:#f5a623"></i>Released for exam (class off)</span><span><i style="background:#fff"></i>Unused</span><span><i style="background:#161618"></i>Blocked (maintenance)</span></div>
+<div class="sc" id="bld"></div>
+<h2>Room view</h2><div id="room"></div>
+<h2>Find my seat</h2><input id="q" placeholder="Roll no, e.g. MBA25-0001" size="28" oninput="find(1)"><p id="fr"></p>
+<h2>Released classes</h2><div class="sc" id="tbl"></div></div>
+<div id="v2" hidden><h2>Student notice board</h2><div id="sn"></div><h2>Faculty notices</h2><div id="fn"></div></div>
+</main>
+<script>
+const P=[["MBA-301","Strategic Management",420,"MBA25"],["BBA-201","Business Statistics",380,"BBA25"],["BCM-301","Corporate Accounting",360,"BCOM25"],["MBA-101","Managerial Economics",350,"MBA26"],["BBA-401","Marketing Management",340,"BBA24"],["BCM-501","Auditing and Assurance",330,"BCOM24"],["BBA-101","Principles of Management",310,"BBA26"],["BCM-101","Financial Accounting",290,"BCOM26"]];
+const COL=["#f8b4b4","#a8d8f0","#fbe38e","#b9e3b0","#d9b8f0","#f9c99b","#9fe0d6","#d8d8d8"];
+const FREE=new Set("103 105 106 203 205 208 209 302 303 305 312 313 314 403 404 406 407 408 410 411 414 502 503 504 505 506 507 509 512 513 514 601 602 603 604 605 607 608 610 612 613 614".split(" ").map(Number));
+const RS=[[109,"MBA Sem III – Guest Lecture: Fintech Trends (Industry Speaker Series)","Prof. Anil Deshmukh","Low"],[211,"BBA Sem II – Business Communication Tutorial","Prof. Sunita Rao","Low"],[310,"B.Com Sem IV – Elective: Banking & Insurance","Prof. Karan Mehta","Low"],[413,"MBA Sem I – Elective: Design Thinking","Prof. Neha Kulkarni","Low"],[508,"BBA Sem IV – Tutorial: Business Statistics Problem Practice","Prof. Rohit Nair","Low"],[101,"MBA Sem II – Business Analytics Lab (Practical Batch)","Prof. Meera Iyer","Medium"],[207,"B.Com Sem VI – Project Work Review Session","Prof. Farhan Qureshi","Medium"],[304,"BBA Sem VI – Internship Presentation Session","Prof. Pooja Bhatt","Medium"],[611,"MBA Sem IV – Dissertation Mentoring Hour","Prof. Vikram Sathe","Medium"]];
+const RM={};RS.forEach(r=>RM[r[0]]=r);
+const POS=[0,1,2,3].map(k=>{const rs=k<2?[0,1,2]:[5,4,3],ss=k%2?[9,8,7,6,5]:[0,1,2,3,4];return rs.flatMap(r=>ss.map(s=>r*10+s))});
+const CORN=["top-left","top-right","bottom-left","bottom-right"];
+let B=new Set(),sel=null,hl=null,st;
+const $=id=>document.getElementById(id),pad=n=>String(n).padStart(4,"0"),fmt=n=>n.toLocaleString("en-IN");
+function sim(n,cnt){let rem=cnt.slice(),rooms=[];for(let i=0;i<n;i++){const ix=rem.map((_,j)=>j).filter(j=>rem[j]>0).sort((a,b)=>rem[b]-rem[a]||a-b).slice(0,4);if(!ix.length)break;rooms.push(ix.map(j=>{const t=Math.min(15,rem[j]);rem[j]-=t;return[j,t]}))}return{rooms,rem}}
+function calc(){
+const cnt=P.map(p=>p[2]),tot=cnt.reduce((a,b)=>a+b,0),K=sim(999,cnt).rooms.length;
+const free=[...FREE].filter(r=>!B.has(r)).sort((a,b)=>a-b);
+const res=RS.filter(r=>!B.has(r[0])).sort((a,b)=>(a[3]=="Low"?0:1)-(b[3]=="Low"?0:1)||a[0]-b[0]);
+let ch=free.slice(0,K),rel=[];
+if(ch.length<K){rel=res.slice(0,K-ch.length);ch=ch.concat(rel.map(r=>r[0]))}
+ch.sort((a,b)=>a-b);
+const S=sim(ch.length,cnt),short=S.rem.reduce((a,b)=>a+b,0),c=cnt.map(_=>0),maps={},idx={};
+S.rooms.forEach((rm,i)=>{const m=Array(60).fill(null),room=ch[i];
+rm.forEach(([j,t],k)=>{for(let q=0;q<t;q++){const pos=POS[k][q],roll=P[j][3]+"-"+pad(++c[j]);m[pos]={j,roll,st:q==0};idx[roll]={room,i:pos}}});maps[room]=m});
+st={tot,K,ch,rel:rel.map(r=>r[0]),relr:rel,maps,idx,short}}
+function R(){
+calc();const{tot,K,ch,rel,relr,short}=st;
+$("wn").innerHTML=short?`<div class="warn">Not enough rooms: ${fmt(short)} students (${K-ch.length} more rooms needed) cannot be seated. Unblock a room to fix this.</div>`:"";
+const seats=ch.length*60;
+$("cards").innerHTML=[["Students",tot],["Exam rooms used",ch.length],["Rooms released",rel.length],["Seats",seats],["Spare seats",seats-(tot-short)]].map(a=>`<div class="card">${a[0]}<b>${fmt(a[1])}</b></div>`).join("");
+let h="";for(let f=6;f>=1;f--){h+=`<div class="fl"><b>Floor ${f}</b>`;for(let n=1;n<=14;n++){const r=f*100+n;
+const c=B.has(r)?"blk":rel.includes(r)?"rel":ch.includes(r)?"ex":FREE.has(r)?"un":"reg";
+h+=`<button class="rm ${c} ${sel==r?"sel":""}" title="${RM[r]?RM[r][1]:c=="reg"?"Regular class (cannot be rescheduled)":""}" onclick="pick(${r})">${r}</button>`}h+="</div>"}
+$("bld").innerHTML=h;
+$("tbl").innerHTML=rel.length?`<table><tr><th>Room</th><th>Class</th><th>Faculty</th><th>Priority</th></tr>${[...relr].sort((a,b)=>a[0]-b[0]).map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`).join("")}</table>`:"<p>No classes released.</p>";
+room();find(0);notes()}
+function pick(r){sel=r;hl=null;R();$("room").scrollIntoView({behavior:"smooth"})}
+function tog(r){B.has(r)?B.delete(r):B.add(r);R()}
+function room(){
+const r=sel,el=$("room");if(!r){el.innerHTML="<p>Click any room in the building view.</p>";return}
+const m=st.maps[r],blk=B.has(r),can=blk||FREE.has(r)||!!m;
+const s=blk?"Blocked (maintenance)":m?(st.rel.includes(r)?"Exam room (class released)":"Exam room"):FREE.has(r)?"Free, not needed for exams":RM[r]?"Regular class, not needed for exams":"Regular class (cannot be rescheduled)";
+let h=`<p><b style="font-size:22px">Room ${r}</b> · Floor ${Math.floor(r/100)} · ${s} ${can?`<button class="b" onclick="tog(${r})">${blk?"Unblock room":"Block (maintenance)"}</button>`:""}</p>`;
+if(m){const n={};m.forEach(c=>c&&(n[c.j]=(n[c.j]||0)+1));
+h+=`<div class="lg">${Object.keys(n).map(j=>`<span><i style="background:${COL[j]}"></i>${P[j][0]} ${P[j][1]} (${n[j]})</span>`).join("")}<span><b style="color:#C4161C">★ START</b> = corner where each paper starts</span></div><div class="sc"><div class="seats">`;
+m.forEach((c,i)=>{const hit=hl&&hl.room==r&&hl.i==i?" hit":"";
+h+=c?`<div class="s${c.st?" st":""}${hit}" style="background:${COL[c.j]}" title="Row ${(i/10|0)+1}, seat ${i%10+1}">${c.st?`<small>★ START ${CORN[[...Array(4)].findIndex((_,k)=>POS[k][0]==i)]}</small><br>`:""}${c.roll}</div>`:`<div class="s${hit}" style="background:#f0f0f0;color:#999">empty</div>`});
+h+="</div></div><p>Rows 1 to 6 run top to bottom; seats 1 to 10 run left to right.</p>"}
+el.innerHTML=h}
+function find(nav){
+const v=$("q").value.trim().toUpperCase(),o=$("fr");
+if(!v){o.innerHTML="";if(hl){hl=null;room()}return}
+const h=st.idx[v];
+if(!h){o.innerHTML="<b style='color:#C4161C'>Roll number not found, or not seated.</b>";hl=null;if(nav)room();return}
+hl=h;o.innerHTML=`Floor <b>${Math.floor(h.room/100)}</b> · Room <b>${h.room}</b> · Row <b>${(h.i/10|0)+1}</b> · Seat <b>${h.i%10+1}</b>`;
+if(nav){sel=h.room;R()}else room()}
+const EX="15 December 2026, 10:00 to 13:00";
+function tab(n){$("v1").hidden=n!=1;$("v2").hidden=n!=2;$("t1").className=n==1?"on":"";$("t2").className=n==2?"on":""}
+function notes(){
+const g=P.map(_=>[]);
+st.ch.forEach(r=>{const a={};st.maps[r].forEach(c=>{if(c){const n=+c.roll.split("-")[1],o=a[c.j]||(a[c.j]={lo:n,hi:n,n:0});o.lo=Math.min(o.lo,n);o.hi=Math.max(o.hi,n);o.n++}});for(const j in a)g[j].push([r,a[j]])});
+$("sn").innerHTML=(st.short?`<div class="warn">Warning: ${fmt(st.short)} students are not yet seated, so some notices are incomplete.</div>`:"")+P.map((p,j)=>`<div class="nt"><h3>${p[0]} ${p[1]} (${p[2]} students)</h3>${g[j].length?`<table><tr><th>Room</th><th>Floor</th><th>Roll numbers</th><th>Students</th></tr>${g[j].map(([r,o])=>`<tr><td><b>${r}</b></td><td>${Math.floor(r/100)}</td><td>${p[3]}-${pad(o.lo)} to ${p[3]}-${pad(o.hi)}</td><td>${o.n}</td></tr>`).join("")}</table>`:"No rooms allocated."}</div>`).join("");
+$("fn").innerHTML=st.relr.length?[...st.relr].sort((a,b)=>a[0]-b[0]).map(r=>`<div class="nt"><h3>To: ${r[2]}</h3><p>Dear ${r[2]},</p><p>Your class "${r[1]}" scheduled in Room ${r[0]} (Floor ${Math.floor(r[0]/100)}) will not be held on ${EX}, as the room is needed for the university examinations. We kindly request you to reschedule this session at a convenient time and inform your students.</p><p>Thank you for your understanding.<br>Examination Office, Aranya University</p></div>`).join(""):"<p>No classes released, so no faculty notices are needed.</p>"}
+$("pap").innerHTML="<tr><th>Code</th><th>Paper</th><th>Students</th></tr>"+P.map((p,j)=>`<tr><td>${p[0]}</td><td>${p[1]}</td><td><input type="number" min="0" value="${p[2]}" oninput="P[${j}][2]=Math.max(0,+this.value||0);R()"></td></tr>`).join("");
+R();
+</script></body></html>
